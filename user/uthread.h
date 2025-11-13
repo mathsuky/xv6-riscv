@@ -8,3 +8,5 @@ int uthread_gettid(void);
 
 void uthread_acquire(int *locked);
 void uthread_release(int *locked);
+
+int uthread_add2(void (*f)(uint64), uint64 arg, uint8 *stack, uint64 size);

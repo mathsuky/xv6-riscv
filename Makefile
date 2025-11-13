@@ -128,6 +128,14 @@ $U/_uthread_sync: $U/uthread_sync.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
 	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
 	$(OBJDUMP) -S $U/_uthread_sync > $U/uthread_sync.asm
 
+$U/_uthread_arg: $U/uthread_arg.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
+	$(OBJDUMP) -S $U/_uthread_arg > $U/uthread_arg.asm
+
+$U/_uthread_abi: $U/uthread_abi.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
+	$(OBJDUMP) -S $U/_uthread_abi > $U/uthread_abi.asm
+
 mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 	gcc -Wno-unknown-attributes -I. -o mkfs/mkfs mkfs/mkfs.c
 
@@ -160,6 +168,8 @@ UPROGS=\
 	$U/_swtest\
 	$U/_uthread_test\
 	$U/_uthread_sync\
+	$U/_uthread_arg\
+	$U/_uthread_abi\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

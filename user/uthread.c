@@ -42,6 +42,9 @@ struct uthread
   int tid;
   int state;
   void (*func)(void);
+  void (*func_arg)(uint64);  // 引数付きスレッド関数用
+  uint64 arg;               // スレッド関数の引数
+  int has_arg;              // 引数の有無フラグ
   struct context context;
   uint8 *stack;
   uint64 stack_size;
@@ -73,7 +76,11 @@ static struct uthread *alloc_thread(void)
 static void thread_wrapper(void)
 {
   struct uthread *t = &uthreads[current_tid - 1];
-  t->func();
+  if (t->has_arg) {
+    t->func_arg(t->arg);
+  } else {
+    t->func();
+  }
   uthread_exit();
 }
 
@@ -86,6 +93,7 @@ int uthread_add(void (*f)(void), uint8 *stack, uint64 size)
     return -1;
 
   t->func = f;
+  t->has_arg = 0;  // 引数なしスレッド
   t->stack = stack;
   t->stack_size = size;
   t->state = RUNNABLE;
@@ -166,4 +174,26 @@ void uthread_acquire(int *locked)
 void uthread_release(int *locked)
 {
   *locked = 0;
+}
+
+int uthread_add2(void (*f)(uint64), uint64 arg, uint8 *stack, uint64 size)
+{
+  struct uthread *t;
+
+  t = alloc_thread();
+  if (t == 0)
+    return -1;
+
+  t->func_arg = f;
+  t->arg = arg;
+  t->has_arg = 1;  // 引数ありスレッド
+  t->stack = stack;
+  t->stack_size = size;
+  t->state = RUNNABLE;
+
+  memset(&t->context, 0, sizeof(t->context)); // コンテキストの初期化
+  t->context.ra = (uint64)thread_wrapper;     // リターンアドレスの設定
+  t->context.sp = (uint64)(stack + size);     // スタックポインタの設定
+
+  return t->tid;
 }
