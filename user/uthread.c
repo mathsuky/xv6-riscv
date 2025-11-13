@@ -152,10 +152,18 @@ int uthread_gettid(void)
 
 void uthread_acquire(int *locked)
 {
-  // TODO: Replace this comment with your code.
+  for (;;)
+  {
+    if (*locked == 0)
+    {
+      *locked = 1;
+      break;
+    }
+    uthread_yield();
+  }
 }
 
 void uthread_release(int *locked)
 {
-  // TODO: Replace this comment with your code.
+  *locked = 0;
 }
