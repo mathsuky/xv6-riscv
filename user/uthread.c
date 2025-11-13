@@ -4,7 +4,8 @@
 #include "user/uthread.h"
 
 // Saved registers for kernel context switches. (from kernel/proc.h)
-struct context {
+struct context
+{
   uint64 ra;
   uint64 sp;
 
@@ -24,35 +25,137 @@ struct context {
 };
 
 // swtch.S (from kernel/defs.h)
-void swtch(struct context*, struct context*);
+void swtch(struct context *, struct context *);
 
+// xv6のプロセスの状態
+enum
+{
+  UNUSED,
+  USED,
+  RUNNABLE,
+  RUNNING,
+  EXITED
+};
 
-int uthread_add(void (*f)(void), uint8 *stack, uint64 size) {
-  // TODO: Replace this comment with your code.
-  return -1; // This line should also be replaced with your code.
+struct uthread
+{
+  int tid;
+  int state;
+  void (*func)(void);
+  struct context context;
+  uint8 *stack;
+  uint64 stack_size;
+};
+
+// スレッドテーブルの実装
+struct uthread uthreads[MAX_UTHREADS];
+int next_tid = 1;
+int current_tid = -1;
+
+struct context scheduler_context;
+
+static struct uthread *alloc_thread(void)
+{
+  struct uthread *t;
+
+  for (t = uthreads; t < &uthreads[MAX_UTHREADS]; t++)
+  {
+    if (t->state == UNUSED)
+    {
+      t->tid = next_tid++;
+      t->state = USED;
+      return t;
+    }
+  }
+  return 0;
 }
 
-void uthread_start(void) {
+static void thread_wrapper(void)
+{
+  struct uthread *t = &uthreads[current_tid - 1];
+  t->func();
+  uthread_exit();
+}
+
+int uthread_add(void (*f)(void), uint8 *stack, uint64 size)
+{
+  struct uthread *t;
+
+  t = alloc_thread();
+  if (t == 0)
+    return -1;
+
+  t->func = f;
+  t->stack = stack;
+  t->stack_size = size;
+  t->state = RUNNABLE;
+
+  memset(&t->context, 0, sizeof(t->context)); // コンテキストの初期化
+  t->context.ra = (uint64)thread_wrapper;     // リターンアドレスの設定
+  t->context.sp = (uint64)(stack + size);     // スタックポインタの設定
+
+  return t->tid;
+}
+
+void uthread_start(void)
+{
+  struct uthread *t;
+  int found;
+  for (;;)
+  {
+    found = 0;
+
+    for (t = uthreads; t < &uthreads[MAX_UTHREADS]; t++)
+    {
+      if (t->state == RUNNABLE)
+      {
+        found = 1;
+
+        t->state = RUNNING;
+        current_tid = t->tid;
+        swtch(&scheduler_context, &t->context);
+
+        current_tid = -1;
+
+        if (t->state == EXITED)
+        {
+          t->state = UNUSED;
+        }
+      }
+    }
+
+    if (!found)
+      break;
+  }
+}
+
+void uthread_yield(void)
+{
+  struct uthread *t = &uthreads[current_tid - 1];
+
+  t->state = RUNNABLE;
+  swtch(&t->context, &scheduler_context);
+}
+
+void uthread_exit(void)
+{
+  struct uthread *t = &uthreads[current_tid - 1];
+
+  t->state = EXITED;
+  swtch(&t->context, &scheduler_context);
+}
+
+int uthread_gettid(void)
+{
+  return current_tid;
+}
+
+void uthread_acquire(int *locked)
+{
   // TODO: Replace this comment with your code.
 }
 
-void uthread_yield(void) {
-  // TODO: Replace this comment with your code.
-}
-
-void uthread_exit(void) {
-  // TODO: Replace this comment with your code.
-}
-
-int uthread_gettid(void) {
-  // TODO: Replace this comment with your code.
-  return -1; // This line should also be replaced with your code.
-}
-
-void uthread_acquire(int *locked) {
-  // TODO: Replace this comment with your code.
-}
-
-void uthread_release(int *locked) {
+void uthread_release(int *locked)
+{
   // TODO: Replace this comment with your code.
 }
