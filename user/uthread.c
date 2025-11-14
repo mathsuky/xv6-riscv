@@ -22,10 +22,10 @@ struct context
   uint64 s9;
   uint64 s10;
   uint64 s11;
+  uint64 a0; // 引数レジスタ
 };
 
-// swtch.S (from kernel/defs.h)
-void swtch(struct context *, struct context *);
+void uthread_swtch(struct context *, struct context *);
 
 // xv6のプロセスの状態
 enum
@@ -42,7 +42,7 @@ struct uthread
   int tid;
   int state;
   void (*func)(void);
-  void (*func_arg)(uint64);  // 引数付きスレッド関数用
+  void (*func_arg)(uint64); // 引数付きスレッド関数用
   uint64 arg;               // スレッド関数の引数
   int has_arg;              // 引数の有無フラグ
   struct context context;
@@ -73,12 +73,24 @@ static struct uthread *alloc_thread(void)
   return 0;
 }
 
+static void thread_wrapper_with_arg(void)
+{
+  struct uthread *t = &uthreads[current_tid - 1];
+  uint64 arg_from_a0;
+  __asm__ volatile("mv %0, a0" : "=r"(arg_from_a0));
+  t->func_arg(arg_from_a0);
+  uthread_exit();
+}
+
 static void thread_wrapper(void)
 {
   struct uthread *t = &uthreads[current_tid - 1];
-  if (t->has_arg) {
-    t->func_arg(t->arg);
-  } else {
+  if (t->has_arg)
+  {
+    thread_wrapper_with_arg();
+  }
+  else
+  {
     t->func();
   }
   uthread_exit();
@@ -93,7 +105,7 @@ int uthread_add(void (*f)(void), uint8 *stack, uint64 size)
     return -1;
 
   t->func = f;
-  t->has_arg = 0;  // 引数なしスレッド
+  t->has_arg = 0;
   t->stack = stack;
   t->stack_size = size;
   t->state = RUNNABLE;
@@ -121,7 +133,7 @@ void uthread_start(void)
 
         t->state = RUNNING;
         current_tid = t->tid;
-        swtch(&scheduler_context, &t->context);
+        uthread_swtch(&scheduler_context, &t->context);
 
         current_tid = -1;
 
@@ -142,7 +154,7 @@ void uthread_yield(void)
   struct uthread *t = &uthreads[current_tid - 1];
 
   t->state = RUNNABLE;
-  swtch(&t->context, &scheduler_context);
+  uthread_swtch(&t->context, &scheduler_context);
 }
 
 void uthread_exit(void)
@@ -150,7 +162,7 @@ void uthread_exit(void)
   struct uthread *t = &uthreads[current_tid - 1];
 
   t->state = EXITED;
-  swtch(&t->context, &scheduler_context);
+  uthread_swtch(&t->context, &scheduler_context);
 }
 
 int uthread_gettid(void)
@@ -186,14 +198,15 @@ int uthread_add2(void (*f)(uint64), uint64 arg, uint8 *stack, uint64 size)
 
   t->func_arg = f;
   t->arg = arg;
-  t->has_arg = 1;  // 引数ありスレッド
+  t->has_arg = 1;
   t->stack = stack;
   t->stack_size = size;
   t->state = RUNNABLE;
 
-  memset(&t->context, 0, sizeof(t->context)); // コンテキストの初期化
-  t->context.ra = (uint64)thread_wrapper;     // リターンアドレスの設定
-  t->context.sp = (uint64)(stack + size);     // スタックポインタの設定
+  memset(&t->context, 0, sizeof(t->context));      // コンテキストの初期化
+  t->context.ra = (uint64)thread_wrapper_with_arg; // リターンアドレスの設定
+  t->context.sp = (uint64)(stack + size);          // スタックポインタの設定
+  t->context.a0 = arg;
 
   return t->tid;
 }

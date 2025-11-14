@@ -120,20 +120,20 @@ $U/_swtest: $U/swtest.o $(ULIB) $K/swtch.o
 $U/uthread.o: $U/uthread.c $U/uthread.h
 	$(CC) $(CFLAGS) -c -o $U/uthread.o $<
 
-$U/_uthread_test: $U/uthread_test.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
-	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
+$U/_uthread_test: $U/uthread_test.o $(ULIB) $U/uthread.o $U/uthread_swtch.o $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $U/uthread_swtch.o
 	$(OBJDUMP) -S $U/_uthread_test > $U/uthread_test.asm
 
-$U/_uthread_sync: $U/uthread_sync.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
-	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
+$U/_uthread_sync: $U/uthread_sync.o $(ULIB) $U/uthread.o $U/uthread_swtch.o $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $U/uthread_swtch.o
 	$(OBJDUMP) -S $U/_uthread_sync > $U/uthread_sync.asm
 
-$U/_uthread_arg: $U/uthread_arg.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
-	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
+$U/_uthread_arg: $U/uthread_arg.o $(ULIB) $U/uthread.o $U/uthread_swtch.o $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $U/uthread_swtch.o
 	$(OBJDUMP) -S $U/_uthread_arg > $U/uthread_arg.asm
 
-$U/_uthread_abi: $U/uthread_abi.o $(ULIB) $U/uthread.o $K/swtch.o $U/user.ld
-	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $K/swtch.o
+$U/_uthread_abi: $U/uthread_abi.o $(ULIB) $U/uthread.o $U/uthread_swtch.o $U/user.ld
+	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $< $(ULIB) $U/uthread.o $U/uthread_swtch.o
 	$(OBJDUMP) -S $U/_uthread_abi > $U/uthread_abi.asm
 
 mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
