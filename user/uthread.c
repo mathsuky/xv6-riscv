@@ -42,9 +42,9 @@ struct uthread
   int tid;
   int state;
   void (*func)(void);
-  void (*func_arg)(uint64); // 引数付きスレッド関数用
-  uint64 arg;               // スレッド関数の引数
-  int has_arg;              // 引数の有無フラグ
+  void (*func_arg)(uint64);
+  uint64 arg;
+  int has_arg;
   struct context context;
   uint8 *stack;
   uint64 stack_size;
