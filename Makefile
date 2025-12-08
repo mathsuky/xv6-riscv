@@ -149,6 +149,7 @@ UPROGS=\
 	$U/_chatsend\
 	$U/_chatrecv\
 	$U/_appendtest\
+	$U/_redirecttest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
