@@ -150,6 +150,7 @@ UPROGS=\
 	$U/_chatrecv\
 	$U/_appendtest\
 	$U/_redirecttest\
+	$U/_lseektest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

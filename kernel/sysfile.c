@@ -598,10 +598,71 @@ sys_mkfifo(void)
 uint64
 sys_lseek(void)
 {
-  // fill with your code
-  // return values:
-  //  * successful completion, resulting offset location
-  //    as measured in bytes from the beginning of the file. 
-  //  * Otherwise, -1 is returned
-  return -1;
+  int fd, offset, whence;
+  struct file *f;
+  int new_off;
+
+  argint(0, &fd);
+  argint(1, &offset);
+  argint(2, &whence);
+
+  // ファイルディスクリプタの検証
+  if(fd < 0 || fd >= NOFILE || (f = myproc()->ofile[fd]) == 0)
+    return -1;
+
+  if(f->type != FD_INODE)
+    return -1;
+
+  ilock(f->ip);
+
+  // 新しいオフセットの計算
+  switch(whence){
+  case SEEK_SET:
+    new_off = offset;
+    break;
+  case SEEK_CUR:
+    new_off = f->off + offset;
+    break;
+  case SEEK_END:
+    new_off = f->ip->size + offset;
+    break;
+  default:
+    iunlock(f->ip);
+    return -1;
+  }
+
+  if(new_off < 0){
+    iunlock(f->ip);
+    return -1;
+  }
+
+  if(new_off > MAXFILE * BSIZE){
+    iunlock(f->ip);
+    return -1;
+  }
+
+  // オフセットがファイルサイズを超える場合、ファイルを拡張（0で埋める）
+  if(new_off > f->ip->size){
+    static char zeros[BSIZE];
+    uint current = f->ip->size;
+    uint target = new_off;
+
+    while(current < target){
+      uint n = target - current;
+      if(n > BSIZE) n = BSIZE;
+      begin_op();
+      if(writei(f->ip, 0, (uint64)zeros, current, n) != n){
+        end_op();
+        iunlock(f->ip);
+        return -1;
+      }
+      end_op();
+      current += n;
+    }
+  }
+
+  f->off = new_off;
+
+  iunlock(f->ip);
+  return new_off;
 }
