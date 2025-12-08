@@ -146,6 +146,8 @@ UPROGS=\
 	$U/_fifotestp\
 	$U/_fifotestc\
 	$U/_fifotest\
+	$U/_chatsend\
+	$U/_chatrecv\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
