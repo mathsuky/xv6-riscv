@@ -352,6 +352,65 @@ sys_open(void)
   if(ip->type == T_DEVICE){
     f->type = FD_DEVICE;
     f->major = ip->major;
+  } else if(ip->type == T_FIFO){
+    f->type = FD_PIPE;
+    f->readable = !(omode & O_WRONLY);
+    f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+
+    // Allocate pipe structure if not already allocated
+    if(ip->fifo_pipe == 0){
+      struct pipe *pi = (struct pipe*)kalloc();
+      if(pi == 0){
+        myproc()->ofile[fd] = 0;
+        fileclose(f);
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+      pi->readopen = 0;
+      pi->writeopen = 0;
+      pi->nwrite = 0;
+      pi->nread = 0;
+      initlock(&pi->lock, "fifo");
+      ip->fifo_pipe = pi;
+      ip->fifo_readers = 0;
+      ip->fifo_writers = 0;
+    }
+
+    f->pipe = ip->fifo_pipe;
+    f->ip = ip;
+
+    acquire(&f->pipe->lock);
+
+    if(f->writable && !f->readable){
+      ip->fifo_writers++;
+      f->pipe->writeopen = 1;
+      wakeup(&ip->fifo_writers);
+      iunlock(ip);
+      end_op();
+      while(ip->fifo_readers == 0){
+        sleep(&ip->fifo_readers, &f->pipe->lock);
+      }
+    } else if(f->readable && !f->writable){
+      ip->fifo_readers++;
+      f->pipe->readopen = 1;
+      wakeup(&ip->fifo_readers);
+      iunlock(ip);
+      end_op();
+      while(ip->fifo_writers == 0){
+        sleep(&ip->fifo_writers, &f->pipe->lock);
+      }
+    } else {
+      ip->fifo_readers++;
+      ip->fifo_writers++;
+      f->pipe->readopen = 1;
+      f->pipe->writeopen = 1;
+      iunlock(ip);
+      end_op();
+    }
+
+    release(&f->pipe->lock);
+    return fd;
   } else {
     f->type = FD_INODE;
     f->off = 0;
@@ -507,11 +566,29 @@ sys_pipe(void)
 uint64
 sys_mkfifo(void)
 {
-  // fill with your code
-  // return value:
-  //    0: successfully created a fifo
-  //   -1: an error occurred
-  return -1;
+  char path[MAXPATH];
+  struct inode *ip;
+
+  if(argstr(0, path, MAXPATH) < 0)
+    return -1;
+
+  begin_op();
+
+  // create a FIFO inode
+  ip = create(path, T_FIFO, 0, 0);
+  if(ip == 0){
+    end_op();
+    return -1;
+  }
+
+  // init
+  ip->fifo_pipe = 0;
+  ip->fifo_readers = 0;
+  ip->fifo_writers = 0;
+
+  iunlockput(ip);
+  end_op();
+  return 0;
 }
 
 uint64

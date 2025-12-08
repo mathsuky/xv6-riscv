@@ -311,6 +311,10 @@ ilock(struct inode *ip)
     ip->size = dip->size;
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
+    // init
+    ip->fifo_pipe = 0;
+    ip->fifo_readers = 0;
+    ip->fifo_writers = 0;
     ip->valid = 1;
     if(ip->type == 0)
       panic("ilock: no type");

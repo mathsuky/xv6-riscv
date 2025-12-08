@@ -74,7 +74,38 @@ fileclose(struct file *f)
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){
-    pipeclose(ff.pipe, ff.writable);
+    // Check if this is a FIFO (named pipe) by checking if ip is set
+    if(ff.ip != 0 && ff.ip->type == T_FIFO){
+      // FIFO: update reader/writer counts
+      acquire(&ff.pipe->lock);
+      if(ff.readable){
+        ff.ip->fifo_readers--;
+        if(ff.ip->fifo_readers == 0)
+          ff.pipe->readopen = 0;
+      }
+      if(ff.writable){
+        ff.ip->fifo_writers--;
+        if(ff.ip->fifo_writers == 0)
+          ff.pipe->writeopen = 0;
+      }
+      // Wake up any blocked processes
+      wakeup(&ff.pipe->nread);
+      wakeup(&ff.pipe->nwrite);
+      // Free pipe if no one is using it
+      if(ff.ip->fifo_readers == 0 && ff.ip->fifo_writers == 0){
+        release(&ff.pipe->lock);
+        kfree((char*)ff.pipe);
+        ff.ip->fifo_pipe = 0;
+      } else {
+        release(&ff.pipe->lock);
+      }
+      begin_op();
+      iput(ff.ip);
+      end_op();
+    } else {
+      // Regular pipe
+      pipeclose(ff.pipe, ff.writable);
+    }
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
     begin_op();
     iput(ff.ip);
